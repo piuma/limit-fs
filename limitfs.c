@@ -141,7 +141,6 @@ static int retain_access(const char *path, int mask)
 {
 	int res;
 
-	/* res = access(path, mask); */
 	char relative_path[ strlen(path) + 1];	
 	strcpy(relative_path, ".");
 	strcat(relative_path, path);
@@ -500,7 +499,7 @@ static int retain_utimens(const char *path, const struct timespec ts[2],
 
 static int retain_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-	int fd;	
+	int fd;
 	char relative_path[ strlen(path) + 1];
 	strcpy(relative_path, ".");
 	strcat(relative_path, path);
@@ -517,7 +516,7 @@ static int retain_create(const char *path, mode_t mode, struct fuse_file_info *f
 static int retain_open(const char *path, struct fuse_file_info *fi)
 {
 	int fd;
-	
+
 	char relative_path[ strlen(path) + 1];
 	strcpy(relative_path, ".");
 	strcat(relative_path, path);
@@ -570,6 +569,7 @@ static int retain_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	int res;
+	
 	(void) path;
 	res = pwrite(fi->fh, buf, size, offset);
 	if (res == -1)
@@ -595,7 +595,7 @@ static int retain_write_buf(const char *path, struct fuse_bufvec *buf,
 static int retain_statfs(const char *path, struct statvfs *stbuf)
 {
 	int res;
-	
+
 	res = fstatvfs(mountpoint.fd, stbuf);
 	
 	if (res == -1)
@@ -607,6 +607,7 @@ static int retain_statfs(const char *path, struct statvfs *stbuf)
 static int retain_flush(const char *path, struct fuse_file_info *fi)
 {
 	int res;
+	
 	(void) path;
 	/* This is called from every close on an open file, so call the
 	   close on the underlying filesystem.	But since flush may be
@@ -634,6 +635,7 @@ static int retain_release(const char *path, struct fuse_file_info *fi)
 {
 	int perc_used_space;
 	(void) path;
+
 	close(fi->fh);
 	
 	struct statvfs *stbuf;
@@ -743,7 +745,6 @@ static int retain_lock(const char *path, struct fuse_file_info *fi, int cmd,
 		    struct flock *lock)
 {
 	(void) path;
-
 
 	return ulockmgr_op(fi->fh, cmd, lock, &fi->lock_owner,
 			   sizeof(fi->lock_owner));
