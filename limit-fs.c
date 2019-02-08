@@ -1,26 +1,23 @@
-/*
-  FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
-  Copyright (C) 2011       Sebastian Pipping <sebastian@pipping.org>
-
-  This program can be distributed under the terms of the GNU GPL.
-  See the file COPYING.
-*/
+/**
+ * FUSE: Filesystem in Userspace
+ *  Copyright (C) 2019  Danilo Abbasciano <danilo@piumalab.org>
+ *
+ * This program can be distributed under the terms of the GNU GPL.
+ * See the file COPYING.
+ */
 
 /** @file
  *
- * This file system mirrors the existing file system hierarchy of the
- * system, starting at the root file system. This is implemented by
- * just "passing through" all requests to the corresponding user-space
- * libc functions. This implementation is a little more sophisticated
- * than the one in passthrough.c, so performance is not quite as bad.
+ * FUSE filesystem that removes the oldest file whenever the free
+ * space reaches the set percentage.
+ *
+ * You can use it in a no empty directory, anything you write in will
+ * be written in the FS below. After unmounting it all files remain in
+ * the unmounted directory.
  *
  * Compile with:
- *
- *     gcc -Wall passthrough_fh.c `pkg-config fuse3 --cflags --libs` -lulockmgr -o passthrough_fh
- *
- * ## Source code ##
- * \include passthrough_fh.c */
+ *   gcc -Wall limit-fs.c `pkg-config fuse3 --cflags --libs` -lulockmgr -o limit-fs
+ */
 
 #define FUSE_USE_VERSION 31
 
@@ -53,20 +50,20 @@
 #include <assert.h>
 #include <ftw.h>
 
-/*
+
+struct limitfs_dirp {
+	DIR *dp;
+	struct dirent *entry;
+	off_t offset;
+};
+
+/**
  * Command line options
  *
  * We can't set default values for the char* fields here because
  * fuse_opt_parse would attempt to free() them when the user specifies
  * different values on the command line.
  */
-
-struct retain_dirp {
-	DIR *dp;
-	struct dirent *entry;
-	off_t offset;
-};
-
 static struct options {
         int usage_limit;
         int show_help;
@@ -74,7 +71,7 @@ static struct options {
 
 static struct mountpoint {
 	int fd;
-	struct retain_dirp *dir;
+	struct limitfs_dirp *dir;
 	char *path;
 } mountpoint;
 
@@ -88,9 +85,7 @@ static const struct fuse_opt option_spec[] = {
 };
 
 
-
-
-static void *retain_init(struct fuse_conn_info *conn,
+static void *limitfs_init(struct fuse_conn_info *conn,
 		      struct fuse_config *cfg)
 {
 	(void) conn;
@@ -112,7 +107,7 @@ static void *retain_init(struct fuse_conn_info *conn,
 	return NULL;
 }
 
-static int retain_getattr(const char *path, struct stat *stbuf,
+static int limitfs_getattr(const char *path, struct stat *stbuf,
 			struct fuse_file_info *fi)
 {
 	int res;
@@ -137,7 +132,7 @@ static int retain_getattr(const char *path, struct stat *stbuf,
 	return 0;
 }
 
-static int retain_access(const char *path, int mask)
+static int limitfs_access(const char *path, int mask)
 {
 	int res;
 
@@ -153,7 +148,7 @@ static int retain_access(const char *path, int mask)
 	return 0;
 }
 
-static int retain_readlink(const char *path, char *buf, size_t size)
+static int limitfs_readlink(const char *path, char *buf, size_t size)
 {
 	int res;
 	char relative_path[ strlen(path) + 1];	
@@ -199,7 +194,7 @@ DIR *opendirat(int dir_fd, char const *path, int extra_flags) {
   return dirp;
 }
 
-static int retain_opendir(const char *path, struct fuse_file_info *fi)
+static int limitfs_opendir(const char *path, struct fuse_file_info *fi)
 {
 	int res;
 	
@@ -214,7 +209,7 @@ static int retain_opendir(const char *path, struct fuse_file_info *fi)
 		return 0;
 	}
 
-	struct retain_dirp *d = malloc(sizeof(struct retain_dirp));
+	struct limitfs_dirp *d = malloc(sizeof(struct limitfs_dirp));
 	if (d == NULL)
 		return -ENOMEM;
 	/*
@@ -234,16 +229,16 @@ static int retain_opendir(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static inline struct retain_dirp *get_dirp(struct fuse_file_info *fi)
+static inline struct limitfs_dirp *get_dirp(struct fuse_file_info *fi)
 {
-	return (struct retain_dirp *) (uintptr_t) fi->fh;
+	return (struct limitfs_dirp *) (uintptr_t) fi->fh;
 }
 
-static int retain_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+static int limitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi,
 		       enum fuse_readdir_flags flags)
 {
-	struct retain_dirp *d = get_dirp(fi);
+	struct limitfs_dirp *d = get_dirp(fi);
 	
 	(void) path;
 	if (offset != d->offset) {
@@ -300,9 +295,9 @@ static int retain_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	return 0;
 }
 
-static int retain_releasedir(const char *path, struct fuse_file_info *fi)
+static int limitfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
-	struct retain_dirp *d = get_dirp(fi);
+	struct limitfs_dirp *d = get_dirp(fi);
 	(void) path;
 	if (d->dp == mountpoint.dir->dp) {
 		return 0;
@@ -313,7 +308,7 @@ static int retain_releasedir(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static int retain_mknod(const char *path, mode_t mode, dev_t rdev)
+static int limitfs_mknod(const char *path, mode_t mode, dev_t rdev)
 {
 	int res;
 	
@@ -327,7 +322,7 @@ static int retain_mknod(const char *path, mode_t mode, dev_t rdev)
 	return 0;
 }
 
-static int retain_mkdir(const char *path, mode_t mode)
+static int limitfs_mkdir(const char *path, mode_t mode)
 {
 	int res;
 	char relative_path[ strlen(path) + 1];
@@ -341,7 +336,7 @@ static int retain_mkdir(const char *path, mode_t mode)
 	return 0;
 }
 
-static int retain_unlink(const char *path)
+static int limitfs_unlink(const char *path)
 {
 	int res;
 	
@@ -356,7 +351,7 @@ static int retain_unlink(const char *path)
 	return 0;
 }
 
-static int retain_rmdir(const char *path)
+static int limitfs_rmdir(const char *path)
 {
 	int res;
 
@@ -373,7 +368,7 @@ static int retain_rmdir(const char *path)
 	return 0;
 }
 
-static int retain_symlink(const char *from, const char *to)
+static int limitfs_symlink(const char *from, const char *to)
 {
 	int res;
 	char relative_to[ strlen(to) + 1];
@@ -388,7 +383,7 @@ static int retain_symlink(const char *from, const char *to)
 	return 0;
 }
 
-static int retain_rename(const char *from, const char *to, unsigned int flags)
+static int limitfs_rename(const char *from, const char *to, unsigned int flags)
 {
 	int res;
 	char relative_from[ strlen(from) + 1];
@@ -410,7 +405,7 @@ static int retain_rename(const char *from, const char *to, unsigned int flags)
 	return 0;
 }
 
-static int retain_link(const char *from, const char *to)
+static int limitfs_link(const char *from, const char *to)
 {
 	int res;
 	
@@ -421,7 +416,7 @@ static int retain_link(const char *from, const char *to)
 	return 0;
 }
 
-static int retain_chmod(const char *path, mode_t mode,
+static int limitfs_chmod(const char *path, mode_t mode,
 		     struct fuse_file_info *fi)
 {
 	int res;
@@ -441,7 +436,7 @@ static int retain_chmod(const char *path, mode_t mode,
 	return 0;
 }
 
-static int retain_chown(const char *path, uid_t uid, gid_t gid,
+static int limitfs_chown(const char *path, uid_t uid, gid_t gid,
 		     struct fuse_file_info *fi)
 {
 	int res;
@@ -463,7 +458,7 @@ static int retain_chown(const char *path, uid_t uid, gid_t gid,
 	return 0;
 }
 
-static int retain_truncate(const char *path, off_t size,
+static int limitfs_truncate(const char *path, off_t size,
 			 struct fuse_file_info *fi)
 {
 	int res;
@@ -480,7 +475,7 @@ static int retain_truncate(const char *path, off_t size,
 }
 
 #ifdef HAVE_UTIMENSAT
-static int retain_utimens(const char *path, const struct timespec ts[2],
+static int limitfs_utimens(const char *path, const struct timespec ts[2],
 		       struct fuse_file_info *fi)
 {
 	int res;
@@ -497,7 +492,7 @@ static int retain_utimens(const char *path, const struct timespec ts[2],
 }
 #endif
 
-static int retain_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+static int limitfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
 	int fd;
 	char relative_path[ strlen(path) + 1];
@@ -513,7 +508,7 @@ static int retain_create(const char *path, mode_t mode, struct fuse_file_info *f
 	return 0;
 }
 
-static int retain_open(const char *path, struct fuse_file_info *fi)
+static int limitfs_open(const char *path, struct fuse_file_info *fi)
 {
 	int fd;
 
@@ -530,7 +525,7 @@ static int retain_open(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static int retain_read(const char *path, char *buf, size_t size, off_t offset,
+static int limitfs_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
 	int res;
@@ -543,7 +538,7 @@ static int retain_read(const char *path, char *buf, size_t size, off_t offset,
 	return res;
 }
 
-static int retain_read_buf(const char *path, struct fuse_bufvec **bufp,
+static int limitfs_read_buf(const char *path, struct fuse_bufvec **bufp,
 			size_t size, off_t offset, struct fuse_file_info *fi)
 {
 	struct fuse_bufvec *src;
@@ -565,7 +560,7 @@ static int retain_read_buf(const char *path, struct fuse_bufvec **bufp,
 	return 0;
 }
 
-static int retain_write(const char *path, const char *buf, size_t size,
+static int limitfs_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	int res;
@@ -578,7 +573,7 @@ static int retain_write(const char *path, const char *buf, size_t size,
 	return res;
 }
 
-static int retain_write_buf(const char *path, struct fuse_bufvec *buf,
+static int limitfs_write_buf(const char *path, struct fuse_bufvec *buf,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	struct fuse_bufvec dst = FUSE_BUFVEC_INIT(fuse_buf_size(buf));
@@ -592,7 +587,7 @@ static int retain_write_buf(const char *path, struct fuse_bufvec *buf,
 	return fuse_buf_copy(&dst, buf, FUSE_BUF_SPLICE_NONBLOCK);
 }
 
-static int retain_statfs(const char *path, struct statvfs *stbuf)
+static int limitfs_statfs(const char *path, struct statvfs *stbuf)
 {
 	int res;
 
@@ -604,7 +599,7 @@ static int retain_statfs(const char *path, struct statvfs *stbuf)
 	return 0;
 }
 
-static int retain_flush(const char *path, struct fuse_file_info *fi)
+static int limitfs_flush(const char *path, struct fuse_file_info *fi)
 {
 	int res;
 	
@@ -631,7 +626,7 @@ int check_if_older(const char *path, const struct stat *sb, int typeflag) {
     return 0;
 }
 
-static int retain_release(const char *path, struct fuse_file_info *fi)
+static int limitfs_release(const char *path, struct fuse_file_info *fi)
 {
 	int perc_used_space;
 	(void) path;
@@ -666,7 +661,7 @@ static int retain_release(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static int retain_fsync(const char *path, int isdatasync,
+static int limitfs_fsync(const char *path, int isdatasync,
 		     struct fuse_file_info *fi)
 {
 	int res;
@@ -687,7 +682,7 @@ static int retain_fsync(const char *path, int isdatasync,
 }
 
 #ifdef HAVE_POSIX_FALLOCATE
-static int retain_fallocate(const char *path, int mode,
+static int limitfs_fallocate(const char *path, int mode,
 			off_t offset, off_t length, struct fuse_file_info *fi)
 {
 	(void) path;
@@ -701,7 +696,7 @@ static int retain_fallocate(const char *path, int mode,
 
 #ifdef HAVE_SETXATTR
 /* xattr operations are optional and can safely be left unimplemented */
-static int retain_setxattr(const char *path, const char *name, const char *value,
+static int limitfs_setxattr(const char *path, const char *name, const char *value,
 			size_t size, int flags)
 {
 	int res = lsetxattr(path, name, value, size, flags);
@@ -711,7 +706,7 @@ static int retain_setxattr(const char *path, const char *name, const char *value
 	return 0;
 }
 
-static int retain_getxattr(const char *path, const char *name, char *value,
+static int limitfs_getxattr(const char *path, const char *name, char *value,
 			size_t size)
 {
 	int res = lgetxattr(path, name, value, size);
@@ -721,7 +716,7 @@ static int retain_getxattr(const char *path, const char *name, char *value,
 	return res;
 }
 
-static int retain_listxattr(const char *path, char *list, size_t size)
+static int limitfs_listxattr(const char *path, char *list, size_t size)
 {
 	int res = llistxattr(path, list, size);
 
@@ -730,7 +725,7 @@ static int retain_listxattr(const char *path, char *list, size_t size)
 	return res;
 }
 
-static int retain_removexattr(const char *path, const char *name)
+static int limitfs_removexattr(const char *path, const char *name)
 {
 	int res = lremovexattr(path, name);
 
@@ -741,7 +736,7 @@ static int retain_removexattr(const char *path, const char *name)
 #endif /* HAVE_SETXATTR */
 
 #ifdef HAVE_LIBULOCKMGR
-static int retain_lock(const char *path, struct fuse_file_info *fi, int cmd,
+static int limitfs_lock(const char *path, struct fuse_file_info *fi, int cmd,
 		    struct flock *lock)
 {
 	(void) path;
@@ -751,7 +746,7 @@ static int retain_lock(const char *path, struct fuse_file_info *fi, int cmd,
 }
 #endif
 
-static int retain_flock(const char *path, struct fuse_file_info *fi, int op)
+static int limitfs_flock(const char *path, struct fuse_file_info *fi, int op)
 {
 	int res;
 	(void) path;
@@ -764,7 +759,7 @@ static int retain_flock(const char *path, struct fuse_file_info *fi, int op)
 }
 
 #ifdef HAVE_COPY_FILE_RANGE
-static ssize_t retain_copy_file_range(const char *path_in,
+static ssize_t limitfs_copy_file_range(const char *path_in,
 				   struct fuse_file_info *fi_in,
 				   off_t off_in, const char *path_out,
 				   struct fuse_file_info *fi_out,
@@ -783,52 +778,52 @@ static ssize_t retain_copy_file_range(const char *path_in,
 }
 #endif
 
-static struct fuse_operations retain_oper = {
-	.init           = retain_init,
-	.getattr	= retain_getattr,
-	.access		= retain_access,
-	.readlink	= retain_readlink,
-	.opendir	= retain_opendir,
-	.readdir	= retain_readdir,
-	.releasedir	= retain_releasedir,
-	.mknod		= retain_mknod,
-	.mkdir		= retain_mkdir,
-	.symlink	= retain_symlink,
-	.unlink		= retain_unlink,
-	.rmdir		= retain_rmdir,
-	.rename		= retain_rename,
-	.link		= retain_link,
-	.chmod		= retain_chmod,
-	.chown		= retain_chown,
-	.truncate	= retain_truncate,
+static struct fuse_operations limitfs_oper = {
+	.init           = limitfs_init,
+	.getattr	= limitfs_getattr,
+	.access		= limitfs_access,
+	.readlink	= limitfs_readlink,
+	.opendir	= limitfs_opendir,
+	.readdir	= limitfs_readdir,
+	.releasedir	= limitfs_releasedir,
+	.mknod		= limitfs_mknod,
+	.mkdir		= limitfs_mkdir,
+	.symlink	= limitfs_symlink,
+	.unlink		= limitfs_unlink,
+	.rmdir		= limitfs_rmdir,
+	.rename		= limitfs_rename,
+	.link		= limitfs_link,
+	.chmod		= limitfs_chmod,
+	.chown		= limitfs_chown,
+	.truncate	= limitfs_truncate,
 #ifdef HAVE_UTIMENSAT
-	.utimens	= retain_utimens,
+	.utimens	= limitfs_utimens,
 #endif
-	.create		= retain_create,
-	.open		= retain_open,
-	.read		= retain_read,
-	.read_buf	= retain_read_buf,
-	.write		= retain_write,
-	.write_buf	= retain_write_buf,
-	.statfs		= retain_statfs,
-	.flush		= retain_flush,
-	.release	= retain_release,
-	.fsync		= retain_fsync,
+	.create		= limitfs_create,
+	.open		= limitfs_open,
+	.read		= limitfs_read,
+	.read_buf	= limitfs_read_buf,
+	.write		= limitfs_write,
+	.write_buf	= limitfs_write_buf,
+	.statfs		= limitfs_statfs,
+	.flush		= limitfs_flush,
+	.release	= limitfs_release,
+	.fsync		= limitfs_fsync,
 #ifdef HAVE_POSIX_FALLOCATE
-	.fallocate	= retain_fallocate,
+	.fallocate	= limitfs_fallocate,
 #endif
 #ifdef HAVE_SETXATTR
-	.setxattr	= retain_setxattr,
-	.getxattr	= retain_getxattr,
-	.listxattr	= retain_listxattr,
-	.removexattr	= retain_removexattr,
+	.setxattr	= limitfs_setxattr,
+	.getxattr	= limitfs_getxattr,
+	.listxattr	= limitfs_listxattr,
+	.removexattr	= limitfs_removexattr,
 #endif
 #ifdef HAVE_LIBULOCKMGR
-	.lock		= retain_lock,
+	.lock		= limitfs_lock,
 #endif
-	.flock		= retain_flock,
+	.flock		= limitfs_flock,
 #ifdef HAVE_COPY_FILE_RANGE
-	.copy_file_range = retain_copy_file_range,
+	.copy_file_range = limitfs_copy_file_range,
 #endif
 };
 
@@ -917,6 +912,20 @@ int main(int argc, char *argv[])
 
 	umask(0);
 
+        /* Parse options */
+        if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1)
+                return 1;
+
+        /* When --help is specified, first print our own file-system
+           specific help text, then signal fuse_main to show
+           additional help (by adding `--help` to the options again)
+           without usage: line (by setting argv[0] to the empty
+           string) */
+        if (options.show_help) {
+                show_help(argv[0]);
+                assert(fuse_opt_add_arg(&args, "--help") == 0);
+                args.argv[0][0] = '\0';
+        }
 		
 	/* Set defaults -- we have to use strdup so that
            fuse_opt_parse can free the defaults if other
@@ -924,7 +933,7 @@ int main(int argc, char *argv[])
         options.usage_limit = 80;
         mountpoint.path = fuse_mnt_resolve_path(strdup(argv[0]), argv[argc - 1]);
 
-	mountpoint.dir = malloc(sizeof(struct retain_dirp));
+	mountpoint.dir = malloc(sizeof(struct limitfs_dirp));
 	if (mountpoint.dir == NULL)
 		return -ENOMEM;
 
@@ -940,24 +949,8 @@ int main(int argc, char *argv[])
 	}
 	mountpoint.dir->offset = 0;
 	mountpoint.dir->entry = NULL;
-
-	
-        /* Parse options */
-        if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1)
-                return 1;
-
-        /* When --help is specified, first print our own file-system
-           specific help text, then signal fuse_main to show
-           additional help (by adding `--help` to the options again)
-           without usage: line (by setting argv[0] to the empty
-           string) */
-        if (options.show_help) {
-                show_help(argv[0]);
-                assert(fuse_opt_add_arg(&args, "--help") == 0);
-                args.argv[0][0] = '\0';
-        }
         
-        ret = fuse_main(args.argc, args.argv, &retain_oper, NULL);
+        ret = fuse_main(args.argc, args.argv, &limitfs_oper, NULL);
         fuse_opt_free_args(&args);
 
 	closedir(mountpoint.dir->dp);

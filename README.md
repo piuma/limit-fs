@@ -1,5 +1,5 @@
 # limit-fs
-FUSE filesystem that removes the oldest file whenever the free space
+FUSE filesystem that removes the oldest files whenever the free space
 reaches the set percentage.
 
 You can use it in a no empty directory, anything you write in will be
@@ -15,11 +15,6 @@ limit-fs [FUSE and mount options] mountPoint
 It is recommended to run limit-fs as regular user (not as root). For
 this to work the mount point must be owned by the user.
 
-You can specify the option "--usage-limit=<d>" to set the usage limit
-in percentage. If the option is omitted, limit-fs use the value 80% as
-usage limit.
-
-
 To unmount the filesystem:
 ```
 fusermount -u mountpoint
@@ -29,6 +24,12 @@ On BSD and macOS, to unmount the filesystem:
 ```
 umount mountpoint
 ```
+
+### File-system specific options
+
+You can specify the option "--usage-limit=<d>" to set the usage limit
+in percentage. If the option is omitted, limit-fs use the value
+**80%** as usage limit.
 
 
 ## Compile with
