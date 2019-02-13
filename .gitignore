@@ -1,1 +1,20 @@
+
+# Executables
 limit-fs
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Object files
+*.o
+
+Makefile
+m4/*
+autom4te.cache/
+config.guess
+config.log
+config.status
+config.sub
+libtool
+
+.deps
