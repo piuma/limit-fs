@@ -41,22 +41,13 @@ umount mountpoint
 ```
 
 ## Installation from source
- 1. Download source files:
-    `git clone https://github.com/piuma/limit-fs.git` 
-    
- 2. 'cd' to the directory containing the package's source code and type
-    './configure' to configure the package for your system.
-    `cd limit-fs && ./configure`
-
- 3. Type 'make' to compile the package.
-    `make`
-
- 4. Type 'make install' to install the programs and any data files and
-    documentation.  When installing into a prefix owned by root, it is
-    recommended that the package be configured and built as a regular
-    user, and only the 'make install' phase executed with root
-    privileges.
-    `sudo make install`
+```
+$ sudo dnf install fuse3 fuse3-libs fuse3-devel m4 automake autoconf gcc
+$ ./setup.sh
+$ ./configure
+$ make
+$ sudo make install
+```
 
 ### Manual compile
 ```
