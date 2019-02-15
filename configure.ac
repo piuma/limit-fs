@@ -13,7 +13,13 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 
 # Checks for libraries.
-PKG_CHECK_MODULES(FUSE3, fuse3)
+
+PKG_CHECK_MODULES([FUSE3], [fuse3 >= 3], [have_fuse3=yes], [
+  PKG_CHECK_MODULES([FUSE], [fuse < 3], [have_fuse3=no])
+])
+AM_CONDITIONAL([FUSE3],  [test "$have_fuse3" = "yes"])
+
+
 
 # Checks for header files.
 #AC_CHECK_HEADERS([fcntl.h stddef.h stdlib.h string.h sys/file.h sys/time.h unistd.h])
