@@ -1,7 +1,6 @@
 Name:           limit-fs
 Version:        0.1
-#Release:        1%{?dist}
-Release:        1
+Release:        1%{?dist}
 Summary:        FUSE filesystem that removes the oldest file whenever the free space reaches limits
 
 Group:          System Environment/Kernel
@@ -10,9 +9,16 @@ URL:            https://github.com/piuma/limit-fs
 Source:         %{name}-%{version}.tar.gz
 
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
-BuildRequires:  fuse3-devel >= 3
+
 BuildRequires:  glib2-devel
+
+%if 0%{?fedora} >= 27
+BuildRequires:  fuse3-devel >= 3
 Requires:       fuse3
+%else
+BuildRequires:  fuse-devel
+Requires:       fuse
+%endif
 
 Obsoletes:      limit-fs <= %{version}-%{release}
 Provides:       limit-fs = %{version}-%{release}
