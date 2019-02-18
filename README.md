@@ -6,7 +6,7 @@ You can use it in a no empty directory, anything you write in will be
 written in the underlying filesystem. After unmounting it all files
 remain in the unmounted directory.
 
-## How to use in Linux
+## How to use
 Once limit-fs is installed running it is very simple:
 
 ```
@@ -19,6 +19,9 @@ To unmount the filesystem:
 ```
 fusermount -u mountpoint
 ```
+
+## Screencast
+[![limit-fs screencast](https://asciinema.org/a/228205.png)](https://asciinema.org/a/228205)
 
 ## File-system specific options
 
