@@ -4,4 +4,4 @@ set -e
 
 aclocal
 autoconf
-automake --add-missing
+automake --add-missing --foreign
