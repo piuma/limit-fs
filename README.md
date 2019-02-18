@@ -21,7 +21,7 @@ fusermount -u mountpoint
 ```
 
 ## Screencast
-[![limit-fs screencast](https://asciinema.org/a/228205.png | width=300)](https://asciinema.org/a/228205)
+[![limit-fs screencast](https://asciinema.org/a/228205.png)](https://asciinema.org/a/228205)
 
 ## File-system specific options
 
