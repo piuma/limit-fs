@@ -12,8 +12,8 @@ Once limit-fs is installed running it is very simple:
 ```
 limit-fs [FUSE options] [mount options] mountPoint
 ```
-It is recommended to run limit-fs as regular user (not as root). For
-this to work the mount point must be owned by the user.
+It is _strongly recommended_ to run limit-fs as regular user (not as
+root). For this to work the mount point must be owned by the user.
 
 To unmount the filesystem:
 ```
@@ -29,30 +29,29 @@ You can specify the options:
 
 | option | default | description |
 |:-:|:-:|---|
-| --usage-limit=<d>  | 80 | set the usage limit in percentage. |
+| --usage-limit=<d>  | *80* | set the usage limit in percentage. |
 
 ## Example
 ```
 limit-fs --usage-limit=90 /mnt/
 ```
 
-## How to use in BSD or macOS
-
-On BSD and macOS, to unmount the filesystem:
-```
-umount mountpoint
-```
-
 ## Installation from source
+
+ * Install dependences in fedora >= 27
 ```
-$ sudo dnf install fuse3 fuse3-libs fuse3-devel m4 automake autoconf gcc
+# dnf install m4 automake autoconf gcc fuse3 fuse3-devel
+```
+
+ * Install dependences in CentOS/RHEL/Fedora < 27
+```
+# yum install m4 automake autoconf gcc fuse fuse-devel
+```
+
+* Compile and install
+```
 $ ./setup.sh
 $ ./configure
 $ make
 $ sudo make install
-```
-
-### Manual compile
-```
-gcc -Wall limit-fs.c `pkg-config fuse3 --cflags --libs` -lulockmgr -o limit-fs
 ```
