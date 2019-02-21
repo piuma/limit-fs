@@ -1,5 +1,5 @@
 # limit-fs
-FUSE filesystem that removes the oldest files whenever the free space
+FUSE filesystem that removes the oldest files whenever the used space
 reaches the set percentage.
 
 You can use it in a no empty directory, anything you write in will be
@@ -39,19 +39,19 @@ limit-fs --usage-limit=90 /mnt/
 ## Installation from source
 
  * Install dependences in fedora >= 27
-```
-# dnf install m4 automake autoconf gcc fuse3 fuse3-devel
-```
+   ```
+   # dnf install m4 automake autoconf gcc fuse3 fuse3-devel
+   ```
 
  * Install dependences in CentOS/RHEL/Fedora < 27
-```
-# yum install m4 automake autoconf gcc fuse fuse-devel
-```
+   ```
+   # yum install m4 automake autoconf gcc fuse fuse-devel
+   ```
 
-* Compile and install
-```
-$ ./setup.sh
-$ ./configure
-$ make
-$ sudo make install
-```
+ * Compile and install
+   ```
+   $ ./setup.sh
+   $ ./configure
+   $ make
+   $ sudo make install
+   ```
