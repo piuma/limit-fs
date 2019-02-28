@@ -1,11 +1,11 @@
 AC_PREREQ([2.69])
 AC_INIT(limit-fs, 0.1, danilo@piumalab.org)
 
-AC_CONFIG_SRCDIR([limit-fs.c])
+AC_CONFIG_SRCDIR([src/limit-fs.c])
 
 AM_INIT_AUTOMAKE
 
-#AC_CONFIG_HEADERS([config.h])
+#AC_CONFIG_sHEADERS([config.h])
 
 
 
@@ -25,7 +25,7 @@ AM_CONDITIONAL([FUSE3],  [test "$have_fuse3" = "yes"])
 #AC_CHECK_HEADERS([fcntl.h stddef.h stdlib.h string.h sys/file.h sys/time.h unistd.h])
 AC_CHECK_HEADERS([fuse.h stdio.h stdlib.h string.h unistd.h fcntl.h sys/stat.h dirent.h errno.h sys/time.h sys/file.h stddef.h assert.h ftw.h])
 
-AC_OUTPUT(Makefile)
+AC_OUTPUT([Makefile src/Makefile])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_UID_T
