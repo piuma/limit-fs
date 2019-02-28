@@ -22,3 +22,5 @@ else
   limit_fs_LDADD += ${FUSE_LIBS}
   limit_fs_CPPFLAGS = -DFUSE2
 endif
+
+dist_sbin_SCRIPTS = mount.limit-fs

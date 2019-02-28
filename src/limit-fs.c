@@ -14,12 +14,13 @@
  * You can use it in a no empty directory, anything you write in will
  * be written in the FS below. After unmounting it all files remain in
  * the unmounted directory.
- *
- * Compile with:
- *   gcc -Wall limit-fs.c `pkg-config fuse3 --cflags --libs` -lulockmgr -o limit-fs
  */
 
+#ifdef FUSE3
 #define FUSE_USE_VERSION 31
+#else
+#define FUSE_USE_VERSION 29
+#endif
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -65,14 +66,15 @@ struct limitfs_dirp {
  * different values on the command line.
  */
 static struct options {
-        int usage_limit;
-        int show_help;
+  int usage_limit;
+  int show_help;
+  int show_version;
 } options;
 
 static struct mountpoint {
-	int fd;
-	struct limitfs_dirp *dir;
-	char *path;
+  int fd;
+  struct limitfs_dirp *dir;
+  char *path;
 } mountpoint;
 
 #define OPTION(t, p)                           \
@@ -81,10 +83,12 @@ static const struct fuse_opt option_spec[] = {
         OPTION("--usage-limit=%d", usage_limit),
         OPTION("-h", show_help),
         OPTION("--help", show_help),
+	OPTION("-V", show_version),
+        OPTION("--version", show_version),
         FUSE_OPT_END
 };
 
-
+#ifdef FUSE3
 static void *limitfs_init(struct fuse_conn_info *conn,
 		      struct fuse_config *cfg)
 {
@@ -106,8 +110,9 @@ static void *limitfs_init(struct fuse_conn_info *conn,
 
 	return NULL;
 }
+#endif
 
-static int limitfs_getattr(const char *path, struct stat *stbuf,
+static int limitfs_getattr_fuse3(const char *path, struct stat *stbuf,
 			struct fuse_file_info *fi)
 {
 	int res;
@@ -134,7 +139,7 @@ static int limitfs_getattr(const char *path, struct stat *stbuf,
 
 static int limitfs_access(const char *path, int mask)
 {
-	int res;
+        int res;
 
 	char relative_path[ strlen(path) + 1];	
 	strcpy(relative_path, ".");
@@ -234,6 +239,7 @@ static inline struct limitfs_dirp *get_dirp(struct fuse_file_info *fi)
 	return (struct limitfs_dirp *) (uintptr_t) fi->fh;
 }
 
+#ifdef FUSE3
 static int limitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi,
 		       enum fuse_readdir_flags flags)
@@ -294,6 +300,53 @@ static int limitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 	return 0;
 }
+#endif
+
+#ifdef FUSE2
+static int limitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+		       off_t offset, struct fuse_file_info *fi)
+{
+	struct limitfs_dirp *d = get_dirp(fi);
+	
+	(void) path;
+	if (offset != d->offset) {
+#ifndef __FreeBSD__
+		seekdir(d->dp, offset);
+#else
+		/* Subtract the one that we add when calling
+		   telldir() below */
+		seekdir(d->dp, offset-1);
+#endif
+		d->entry = NULL;
+		d->offset = offset;
+	}
+	while (1) {
+		struct stat st;
+		off_t nextoff;
+		
+		if (!d->entry) {
+			d->entry = readdir(d->dp);
+			if (!d->entry)
+				break;
+		}
+		nextoff = telldir(d->dp);
+#ifdef __FreeBSD__		
+		/* Under FreeBSD, telldir() may return 0 the first time
+		   it is called. But for libfuse, an offset of zero
+		   means that offsets are not supported, so we shift
+		   everything by one. */
+		nextoff++;
+#endif
+		if (filler(buf, d->entry->d_name, &st, nextoff))
+			break;
+
+		d->entry = NULL;
+		d->offset = nextoff;
+	}
+
+	return 0;
+}
+#endif
 
 static int limitfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
@@ -383,7 +436,8 @@ static int limitfs_symlink(const char *from, const char *to)
 	return 0;
 }
 
-static int limitfs_rename(const char *from, const char *to, unsigned int flags)
+
+static int limitfs_rename_fuse3(const char *from, const char *to, unsigned int flags)
 {
 	int res;
 	char relative_from[ strlen(from) + 1];
@@ -416,7 +470,7 @@ static int limitfs_link(const char *from, const char *to)
 	return 0;
 }
 
-static int limitfs_chmod(const char *path, mode_t mode,
+static int limitfs_chmod_fuse3(const char *path, mode_t mode,
 		     struct fuse_file_info *fi)
 {
 	int res;
@@ -436,7 +490,7 @@ static int limitfs_chmod(const char *path, mode_t mode,
 	return 0;
 }
 
-static int limitfs_chown(const char *path, uid_t uid, gid_t gid,
+static int limitfs_chown_fuse3(const char *path, uid_t uid, gid_t gid,
 		     struct fuse_file_info *fi)
 {
 	int res;
@@ -458,7 +512,7 @@ static int limitfs_chown(const char *path, uid_t uid, gid_t gid,
 	return 0;
 }
 
-static int limitfs_truncate(const char *path, off_t size,
+static int limitfs_truncate_fuse3(const char *path, off_t size,
 			 struct fuse_file_info *fi)
 {
 	int res;
@@ -473,6 +527,33 @@ static int limitfs_truncate(const char *path, off_t size,
 
 	return 0;
 }
+
+#ifdef FUSE2
+static int limitfs_getattr_fuse2(const char *path, struct stat *stbuf)
+{
+        return limitfs_getattr_fuse3(path, stbuf, false);
+}
+
+static int limitfs_rename_fuse2(const char *from, const char *to)
+{
+        return limitfs_rename_fuse3(from, to, 0);
+}
+
+static int limitfs_chmod_fuse2(const char *path, mode_t mode)
+{
+        return limitfs_chmod_fuse3(path, mode, false);
+}
+
+static int limitfs_chown_fuse2(const char *path, uid_t uid, gid_t gid)
+{
+        return limitfs_chown_fuse3(path, uid, gid, false);
+}
+
+static int limitfs_truncate_fuse2(const char *path, off_t size)
+{
+        return limitfs_truncate_fuse3(path, size, false);
+}
+#endif
 
 #ifdef HAVE_UTIMENSAT
 static int limitfs_utimens(const char *path, const struct timespec ts[2],
@@ -779,8 +860,21 @@ static ssize_t limitfs_copy_file_range(const char *path_in,
 #endif
 
 static struct fuse_operations limitfs_oper = {
+#ifdef FUSE3
 	.init           = limitfs_init,
-	.getattr	= limitfs_getattr,
+	.getattr	= limitfs_getattr_fuse3,
+	.chown		= limitfs_chown_fuse3,
+	.truncate	= limitfs_truncate_fuse3,
+	.rename		= limitfs_rename_fuse3,
+	.chmod		= limitfs_chmod_fuse3,
+#endif
+#ifdef FUSE2
+	.getattr	= limitfs_getattr_fuse2,
+	.chown		= limitfs_chown_fuse2,
+	.truncate	= limitfs_truncate_fuse2,
+	.rename		= limitfs_rename_fuse2,
+	.chmod		= limitfs_chmod_fuse2,
+#endif
 	.access		= limitfs_access,
 	.readlink	= limitfs_readlink,
 	.opendir	= limitfs_opendir,
@@ -791,11 +885,7 @@ static struct fuse_operations limitfs_oper = {
 	.symlink	= limitfs_symlink,
 	.unlink		= limitfs_unlink,
 	.rmdir		= limitfs_rmdir,
-	.rename		= limitfs_rename,
 	.link		= limitfs_link,
-	.chmod		= limitfs_chmod,
-	.chown		= limitfs_chown,
-	.truncate	= limitfs_truncate,
 #ifdef HAVE_UTIMENSAT
 	.utimens	= limitfs_utimens,
 #endif
@@ -836,6 +926,10 @@ static void show_help(const char *progname)
                "\n");
 }
 
+static void show_version(const char *progname)
+{
+        printf("%s version: v0.1 (build with fuse v%d)\n", progname, FUSE_MAJOR_VERSION);
+}
 
 
 char *fuse_mnt_resolve_path(const char *progname, const char *orig)
@@ -926,7 +1020,14 @@ int main(int argc, char *argv[])
                 assert(fuse_opt_add_arg(&args, "--help") == 0);
                 args.argv[0][0] = '\0';
         }
-		
+
+	if (options.show_version) {
+                show_version(argv[0]);
+                assert(fuse_opt_add_arg(&args, "--version") == 0);
+                args.argv[0][0] = '\0';
+		return 0;
+        }
+
 	/* Set defaults -- we have to use strdup so that
            fuse_opt_parse can free the defaults if other
            values are specified */

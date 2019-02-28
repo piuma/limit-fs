@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Defines our exit codes
+EXIT_STATUS="0"                           # default = Ok :)
+ERROR_UNKNOWN="10"                        # unknown error
+ERROR_PROGRAM="2"                         # internal error
+
+OPTIONS=""
+
+version() {
+    limit-fs --version
+    exit $EXIT_STATUS
+}
+
+usage() {
+    echo "usage: mount.limit-fs [--usage-limit=<n>] [-o <options>] <something> <mountpoint>"
+    echo
+    echo "Options:"
+    echo "    --usage-limit=<d>   Usage limit in percentage"
+    echo "                        (default: 80%)"
+
+    exit $EXIT_STATUS
+}
+
+parse_args() {
+    OPT=$(getopt -o u:,o:,h,V                     \
+		 --long usage-limit:,help,version \
+		 -n 'mount.limit-fs'              \
+		 -- "$@")
+
+    if [ $? != 0 ]; then
+        exit $ERROR_PROGRAM
+    fi
+
+    NB_ARG=""    # enabled if many args set in one parameter (i.e. -dris)
+    eval set -- "$OPT"
+    while true ; do
+        case "$1" in
+	    -o) FUSE_OPTIONS="$2";  shift; shift;;
+            -u|--usage-limit) USAGE_LIMIT="$2";  shift; shift;;
+            -V|--version) version; shift;;
+            -h|--help) usage;;
+            --) shift; break;;
+            *) EXIT_STATUS=$ERROR_USER
+	       printf "\n!Unknown option: '%s'\n\n" "$1" >&2;
+	       usage;;
+        esac
+    done
+
+    if [[ $# -ne 2 ]]; then
+	echo "invalid options"
+	EXIT_STATUS=$ERROR_USER
+	usage
+    fi
+    
+    MOUNTPOINT=$2
+}
+
+parse_args $@
+
+
+if [ "x$FUSE_OPTIONS" != "x" ]; then
+    NORMALIZE_FUSE_OPTIONS="nonempty"
+    
+    SAVE_IFS=$IFS
+    IFS=","
+    for OPT in $FUSE_OPTIONS; do
+	[[ "$OPT" == "auto" ]] && continue
+	[[ "$OPT" == "noauto" ]] && continue
+	[[ "$OPT" == "user" ]] && continue
+	[[ "$OPT" == "nouser" ]] && continue
+	[[ "$OPT" == "users" ]] && continue
+	[[ "$OPT" == "_netdev" ]] && continue
+	[[ "$OPT" == "nonempty" ]] && continue
+	
+	if [ "x$NORMALIZE_FUSE_OPTIONS" == "x" ]; then
+	    NORMALIZE_FUSE_OPTIONS="$OPT"
+	else
+	    NORMALIZE_FUSE_OPTIONS="$NORMALIZE_FUSE_OPTIONS,$OPT"
+	fi
+    done
+    IFS=$SAVE_IFS
+    
+    OPTIONS="$OPTIONS -o $NORMALIZE_FUSE_OPTIONS"
+fi
+
+if [ "x$USAGE_LIMIT" != "x" ]; then
+    OPTIONS="$OPTIONS --usage-limit=$USAGE_LIMIT"
+fi
+
+limit-fs $OPTIONS $MOUNTPOINT

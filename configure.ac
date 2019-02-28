@@ -1,6 +1,8 @@
 AC_PREREQ([2.69])
 AC_INIT(limit-fs, 0.1, danilo@piumalab.org)
 
+AC_PREFIX_DEFAULT(/usr)
+
 AC_CONFIG_SRCDIR([src/limit-fs.c])
 
 AM_INIT_AUTOMAKE
