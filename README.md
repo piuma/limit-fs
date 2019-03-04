@@ -15,21 +15,32 @@ limit-fs [FUSE options] [mount options] mountPoint
 It is _strongly recommended_ to run limit-fs as regular user (not as
 root). For this to work the mount point must be owned by the user.
 
-To unmount the filesystem:
-```
-fusermount -u mountpoint
-```
+To unmount the filesystem use `fusermount -u mountpoint`
 
 ## Screencast
 [![limit-fs screencast](https://asciinema.org/a/228205.png)](https://asciinema.org/a/228205)
+
+## Mounting automatically at boot time
+
+Add the FS to the */etc/fstab* file. For example take the line:
+```
+limit-fs   /mnt/tmpfs/limitfs	limit-fs	defaults,uid=1000,gid=1000,user	0 0
+```
+Second part is the mount point wich the limit-fs is mounted.
+
+Next use limit-fs in the file system type.
+
+Then comes the options **defaults,uid=1000,gid=1000,user**
 
 ## File-system specific options
 
 You can specify the options:
 
-| option | default | description |
-|:-:|:-:|---|
-| --usage-limit=<d>  | *80* | set the usage limit in percentage. |
+| long option | short option | default | description |
+|:-:|:-:|:-:|---|
+| --usage-limit=<d> | -u | *80* | set the usage limit in percentage. |
+| --help            | -h |      | print help message |
+| --version         | -V |      | print version |
 
 ## Example
 ```
@@ -38,7 +49,7 @@ limit-fs --usage-limit=90 /mnt/
 
 ## Installation from source
 
- * Install dependences in fedora >= 27
+ * Install dependences in Fedora >= 27
    ```
    # dnf install m4 automake autoconf gcc fuse3 fuse3-devel
    ```
