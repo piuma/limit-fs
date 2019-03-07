@@ -24,13 +24,13 @@ To unmount the filesystem use `fusermount -u mountpoint`
 
 Add the FS to the */etc/fstab* file. For example take the line:
 ```
-limit-fs   /mnt/tmpfs/limitfs	limit-fs	defaults,uid=1000,gid=1000,user	0 0
+limit-fs   /mnt/tmpfs/limitfs	limit-fs	usage-limit=95,id=1000,gid=1000,user	0 0
 ```
-Second part is the mount point wich the limit-fs is mounted.
+Second part is the mount point which the limit-fs is mounted.
 
 Next use limit-fs in the file system type.
 
-Then comes the options **defaults,uid=1000,gid=1000,user**
+Then comes the options **usage-limit=95,uid=1000,gid=1000,user**
 
 ## File-system specific options
 

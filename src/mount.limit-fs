@@ -60,24 +60,41 @@ parse_args $@
 
 
 if [ "x$FUSE_OPTIONS" != "x" ]; then
-    NORMALIZE_FUSE_OPTIONS="nonempty"
+    #NORMALIZE_FUSE_OPTIONS="nonempty"
+    NORMALIZE_FUSE_OPTIONS=""
     
     SAVE_IFS=$IFS
     IFS=","
     for OPT in $FUSE_OPTIONS; do
-	[[ "$OPT" == "auto" ]] && continue
-	[[ "$OPT" == "noauto" ]] && continue
-	[[ "$OPT" == "user" ]] && continue
-	[[ "$OPT" == "nouser" ]] && continue
-	[[ "$OPT" == "users" ]] && continue
-	[[ "$OPT" == "_netdev" ]] && continue
-	[[ "$OPT" == "nonempty" ]] && continue
-	
-	if [ "x$NORMALIZE_FUSE_OPTIONS" == "x" ]; then
-	    NORMALIZE_FUSE_OPTIONS="$OPT"
-	else
-	    NORMALIZE_FUSE_OPTIONS="$NORMALIZE_FUSE_OPTIONS,$OPT"
-	fi
+	case $OPT in
+	    auto) ;;
+	    noauto) ;;
+	    user) ;;
+	    nouser) ;;
+	    users) ;;
+	    _netdev) ;;
+	    #nonempty) ;;
+
+	    usage-limit=*)
+		OPTIONS="$OPTIONS --${OPT}"
+		;;
+	    
+	    uid=*)
+		if [ "x$NORMALIZE_FUSE_OPTIONS" == "x" ]; then
+		    NORMALIZE_FUSE_OPTIONS="allow_other,$OPT"
+		else
+		    NORMALIZE_FUSE_OPTIONS="$NORMALIZE_FUSE_OPTIONS,allow_other,$OPT"
+		fi
+		;;
+		
+	    *)
+		if [ "x$NORMALIZE_FUSE_OPTIONS" == "x" ]; then
+		    NORMALIZE_FUSE_OPTIONS="$OPT"
+		else
+		    NORMALIZE_FUSE_OPTIONS="$NORMALIZE_FUSE_OPTIONS,$OPT"
+		fi
+		;;
+	esac
     done
     IFS=$SAVE_IFS
     
@@ -88,4 +105,5 @@ if [ "x$USAGE_LIMIT" != "x" ]; then
     OPTIONS="$OPTIONS --usage-limit=$USAGE_LIMIT"
 fi
 
+echo "limit-fs $OPTIONS $MOUNTPOINT"
 limit-fs $OPTIONS $MOUNTPOINT
