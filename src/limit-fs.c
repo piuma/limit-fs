@@ -16,6 +16,8 @@
  * the unmounted directory.
  */
 
+#define LIMIT_FS_VERSION "1.0"
+
 #ifdef FUSE3
 #define FUSE_USE_VERSION 31
 #else
@@ -928,7 +930,10 @@ static void show_help(const char *progname)
 
 static void show_version(const char *progname)
 {
-        printf("%s version: v0.1 (build with fuse v%d)\n", progname, FUSE_MAJOR_VERSION);
+        printf("%s version: v%s (build with fuse v%d)\n",
+	       progname,
+	       LIMIT_FS_VERSION,
+	       FUSE_MAJOR_VERSION);
 }
 
 
@@ -1006,12 +1011,17 @@ int main(int argc, char *argv[])
 
 	umask(0);
 
+	/* Set defaults -- we have to use strdup so that
+           fuse_opt_parse can free the defaults if other
+           values are specified */
+        options.usage_limit = 80;
+	
         /* Parse options */
         if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1)
                 return 1;
 
-        /* When --help is specified, first print our own file-system
-           specific help text, then signal fuse_main to show
+	/* When --help is specified, first print our own file-system
+	   specific help text, then signal fuse_main to show
            additional help (by adding `--help` to the options again)
            without usage: line (by setting argv[0] to the empty
            string) */
@@ -1019,19 +1029,22 @@ int main(int argc, char *argv[])
                 show_help(argv[0]);
                 assert(fuse_opt_add_arg(&args, "--help") == 0);
                 args.argv[0][0] = '\0';
-        }
 
+		ret = fuse_main(args.argc, args.argv, &limitfs_oper, NULL);
+		fuse_opt_free_args(&args);
+		return ret;
+        }
+	
 	if (options.show_version) {
                 show_version(argv[0]);
                 assert(fuse_opt_add_arg(&args, "--version") == 0);
                 args.argv[0][0] = '\0';
-		return 0;
-        }
 
-	/* Set defaults -- we have to use strdup so that
-           fuse_opt_parse can free the defaults if other
-           values are specified */
-        options.usage_limit = 80;
+		ret = fuse_main(args.argc, args.argv, &limitfs_oper, NULL);
+		fuse_opt_free_args(&args);
+		return ret;
+        }
+	
         mountpoint.path = fuse_mnt_resolve_path(strdup(argv[0]), argv[argc - 1]);
 
 	mountpoint.dir = malloc(sizeof(struct limitfs_dirp));
