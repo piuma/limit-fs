@@ -17,7 +17,7 @@ root). For this to work the mount point must be owned by the user.
 To unmount the filesystem use `fusermount -u mountpoint`
 
 ## Screencast
-[![limit-fs screencast](https://asciinema.org/a/228205.png){:height="24px" width="48px"}](https://asciinema.org/a/228205)
+[![limit-fs screencast](https://asciinema.org/a/228205.png)](https://asciinema.org/a/228205)
 
 ## File-system specific options
 
