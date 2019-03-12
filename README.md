@@ -18,6 +18,8 @@ To unmount the filesystem use `fusermount -u mountpoint`
 
 ## Screencast
 
+<script id="asciicast-228205" src="https://asciinema.org/a/228205.js" async></script>
+
 <a href="https://asciinema.org/a/228205?cols=120&rows=36&speed=1.5" target="_blank"><img src="https://asciinema.org/a/228205.svg" width="410"/></a>
 
 ## File-system specific options
