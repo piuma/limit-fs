@@ -101,15 +101,19 @@ EOF
 
 ## Installation from source
 
- * Install dependences in Fedora >= 27
-   ```
-   # dnf install m4 automake autoconf gcc fuse3 fuse3-devel
-   ```
-
- * Install dependences in CentOS/RHEL/Fedora
-   ```
-   # yum install m4 automake autoconf gcc fuse fuse-devel
-   ```
+ * Install dependences:
+   - Fedora >= 27
+     ```
+     # dnf install m4 automake autoconf gcc fuse3 fuse3-devel
+     ```
+   - CentOS/RHEL/Fedora
+     ```
+     # yum install m4 automake autoconf gcc fuse fuse-devel
+     ```
+   - Debian
+     ```
+     # apt-get install m4 automake autoconf gcc fuse libfuse-dev pkg-config make
+     ```
 
  * Compile and install
    ```
