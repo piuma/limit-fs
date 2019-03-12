@@ -95,7 +95,7 @@ EOF
 
  4. Enable the automount
  ```
-# systemctl enable mnt-scratch.automount
+# systemctl enable path-to-mount-point.automount
  ```
 
 ## Installation from source
