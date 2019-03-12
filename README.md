@@ -59,14 +59,14 @@ mount point does not exist at the time of mounting, it is created.
 
  1. Create the file to setup the mount itself
  ```
-# cat - > /etc/systemd/system/path-to-mount-point.mount <<EOF
+# cat > /etc/systemd/system/path-to-mount-point.mount <<EOF
 [Unit]
 Description=limit-fs
 
 [Mount]
 What=limit-fs
 Where=/path/to/mount/point
-Options=usage-limit=95
+Options=usage-limit=95,uid=1000,gid=1005,users
 Type=limit-fs
 
 [Install]
@@ -76,7 +76,7 @@ EOF
 
  2. Create the file to perform automatic mounting
  ```
-# cat - > /etc/systemd/system/path-to-mount-point.automount <<EOF
+# cat > /etc/systemd/system/path-to-mount-point.automount <<EOF
 [Unit]
 Description=Automount limit-fs
 
