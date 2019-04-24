@@ -59,6 +59,7 @@ Substitute */path/to/mount/point* with the correct mount point. If the
 mount point does not exist at the time of mounting, it is created.
 
  1. Create the file to setup the mount itself
+
 ```
 # cat > /etc/systemd/system/path-to-mount-point.mount <<EOF
 [Unit]
@@ -76,6 +77,7 @@ EOF
 ```
 
  2. Create the file to perform automatic mounting
+
 ```
 # cat > /etc/systemd/system/path-to-mount-point.automount <<EOF
 [Unit]
@@ -90,11 +92,13 @@ EOF
 ```
 
  3. Notify systemd there are some new files available
+
 ```
 # systemctl daemon-reload
 ```
 
  4. Enable the automount
+
 ```
 # systemctl enable path-to-mount-point.automount
 ```
