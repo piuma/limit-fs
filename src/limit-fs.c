@@ -52,7 +52,7 @@
 #include <stddef.h>
 #include <assert.h>
 #include <ftw.h>
-
+#include <syslog.h>
 
 struct limitfs_dirp {
 	DIR *dp;
@@ -704,7 +704,7 @@ time_t mtime = 0;
 int check_if_older(const char *path, const struct stat *sb, int typeflag) {
     if (typeflag == FTW_F && (mtime == 0 || sb->st_mtime < mtime)) {
         mtime = sb->st_mtime;
-        strncpy(oldest, path, PATH_MAX+1);
+        strncpy(oldest, path, PATH_MAX);
     }
     return 0;
 }
@@ -731,11 +731,13 @@ static int limitfs_release(const char *path, struct fuse_file_info *fi)
 		if (unlinkat(mountpoint.fd, oldest, 0) == -1)
 			return -errno;
 		
-		oldest[0] = '\0';
-		mtime = 0;
-
 		fstatvfs(mountpoint.fd, stbuf);
 		perc_used_space = 100 - (stbuf->f_bsize * stbuf->f_bavail * 100 / (stbuf->f_bsize * stbuf->f_blocks));
+		
+		syslog(LOG_NOTICE, "file `%s%s' deleted\n", mountpoint.path, oldest);
+
+		oldest[0] = '\0';
+		mtime = 0;
 		count++;
 	}
 	
