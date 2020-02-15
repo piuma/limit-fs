@@ -67,6 +67,7 @@ struct limitfs_dirp {
 static struct options {
         int usage_limit;
         int show_help;
+        int show_version;
 } options;
 
 static struct mountpoint {
@@ -81,6 +82,8 @@ static const struct fuse_opt option_spec[] = {
         OPTION("--usage-limit=%d", usage_limit),
         OPTION("-h", show_help),
         OPTION("--help", show_help),
+        OPTION("-V", show_version),
+        OPTION("--version", show_version),
         FUSE_OPT_END
 };
 
@@ -798,6 +801,14 @@ static void show_help(const char *progname)
                "\n");
 }
 
+static void show_version(const char *progname)
+{
+#ifdef FUSE3
+        printf("%s version: v0.1 (build with fuse v3)\n", progname);
+#else
+        printf("%s version: v0.1 (build with fuse v2)\n", progname);
+#endif
+}
 
 
 char *fuse_mnt_resolve_path(const char *progname, const char *orig)
@@ -887,6 +898,13 @@ int main(int argc, char *argv[])
                 show_help(argv[0]);
                 assert(fuse_opt_add_arg(&args, "--help") == 0);
                 args.argv[0][0] = '\0';
+        }
+
+	if (options.show_version) {
+	        show_version(argv[0]);
+                assert(fuse_opt_add_arg(&args, "--version") == 0);
+                args.argv[0][0] = '\0';
+		return 0;
         }
 		
 	/* Set defaults -- we have to use strdup so that

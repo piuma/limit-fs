@@ -120,9 +120,9 @@ EOF
      ```
 
  * Compile and install
- ```
+   ```
    $ ./setup.sh
    $ ./configure
    $ make
    $ sudo make install
- ```
+    ```
